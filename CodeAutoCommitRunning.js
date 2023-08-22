@@ -1,9 +1,13 @@
 /*
     ---23.08.17---
-    1、点击合并的时候校验每个分支数量够不够，够的跳过并显示成功，将每个commit状态设置为success,不够的取localStorage，跳过success的commit,其他的重新执行
+    1、点击合并的时候校验每个分支数量够不够，够的跳过并显示成功，将每个commit状态设置为success,不够的取localStorage，跳过'success'和'cherry-picked'的commit,其他的重新执行
     2、不够的进行合并，记录状态，状态分为：success、failure、conflict,非success记录msg，记入localStrorage
     3、添加检查按钮，校验每个分支数量够不够，够的跳过并显示成功，将每个commit状态设置为success，所有都成功后设置隐藏控件值，
        可以点发送按钮。分支缺少commit时提示数量需要用户去确认
+
+    ---23.08.21---
+    1、merge requests 时设置remove_source_branch为true，在合并成功后删除临时分支
+    2、在cherry-pick失败的时候删除临时分支
 */ 
 (function () {
     function gitAutoMQ() {
@@ -63,7 +67,6 @@
                     showHTML += '<div class="cap4-text__cnt field-content" >'
                     showHTML += '<input type="text" id="gitInput" class="is-relatinbrowse" placeholder="请输入gitlab账户绑定的AccessToken" ' + this.$data.id + '" value="' + showValue + '">'
                     showHTML += '<button style="width: 40px;line-height: 28px;" id="gitButton">合并</button>'
-                    // showHTML += '<button style="width: 40px;line-height: 28px;" id="gitCheck">检查</button>'
                     showHTML += ' </div>'
                     showHTML += '</div>';
                     showHTML += '</section>';
@@ -109,6 +112,9 @@
                 destroy: function () {
                     this.$el = null;
                 },
+                afterSave: function () {
+                    localStorage.removeItem(this.codeAutoCommitId)
+                },
                 setFieldState: function (id, value) {
                     csdk.core.setFieldData({
                         fieldId: id,
@@ -153,14 +159,14 @@
                 getCommit: function (chooseCommit,keyBranch) {
                     const { formmains, formsons, metadata } = window.csdk.core.getFormData();
                     return formsons.front_formson_1.records.map(i => {
-                        if(!chooseCommit.map(({branch})=>branch).includes(Object.values(i.lists)[0].value)) {
-                            return null;
-                        }
+                        // if(!chooseCommit.map(({branch})=>branch).includes(Object.values(i.lists)[0].value)) {
+                        //     return null;
+                        // }
                         var href = Object.values(i.lists).find(ii => {
                             return ii.value.includes('/commit/')
                         })?.value;
                         return href && Object.values(i.lists)[0].value===keyBranch&&{
-                            path: href.match(/(?<=gitlab.seeyon.com\/).*(?=\/-\/)/g)[0],
+                            path: href.match(/(?<=gitlab.*******.com\/).*(?=\/-\/)/g)[0],
                             commit: href.split('/').pop(),
                         }
                     }).filter(iii => {
@@ -174,7 +180,7 @@
                 handle: function () {
                     const privateToken = document.querySelector('#gitInput').value;
                     if (!privateToken) {
-                        $.alert(`请输入gitlab账户绑定的AccessToken! \r1、在登录gitlab后，点击右上角的头像，选择 "Preferences"。\n2、在左侧导航栏中，选择 "Access Tokens" 。\n3、在 "Access Tokens" 页面，输入 AccessToken 的名称，页面上所有的勾选全选（其中包含api，read_user，read_api，read_repository，write_repository）。\n4、点击 "Create personal access token" 按钮，GitLab 将为你生成一个 AccessToken。\n复制 AccessToken并填入输入框。`);
+                        $.alert(`请输入gitlab账户绑定的AccessToken! \r1、在登录gitlab后，点击右上角的头像，选择 "Preferences"。\n2、在左侧导航栏中，选择 "访问令牌（Access Tokens）" 。\n3、输入 AccessToken 的名称并选择token有效时间（不选则永久有效），token范围全选（其中包含api，read_user，read_api，read_repository，write_repository）。\n4、点击 "创建个人访问令牌（Create personal access token）" 按钮，将生成的 AccessToken 复制并填入输入框。`);
                         return
                     };
                     localStorage.setItem('Private-Token', privateToken);
@@ -183,7 +189,6 @@
                         return { branch: i[1], id: i[4] }
                         }
                     );
-                    console.log('targetBranch',this.targetBranch)
                     if(!this.targetBranch.length){
                         $.alert('请选择要合并的分支！（要合并的分支选择=>是）');
                         return;
@@ -193,10 +198,6 @@
                     //     {
                     //         "path": "cap/cap-front",
                     //         "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //     },
-                    //     {
-                    //         "path": "cap/cap-front",
-                    //         "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb565"
                     //     },
                     // ]
                     if (!(this.targetCommits && this.targetCommits.length)) {
@@ -215,84 +216,15 @@
                     //         ],
                     //         "id": "field0098"
                     //     },
-                    //     {
-                    //         "branch": "standard-V8.2-hotfix_20230414",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0099"
-                    //     },
-                    //     {
-                    //         "branch": "standard-V8.1SP2-hotfix_20230116",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0100"
-                    //     },
-                    //     {
-                    //         "branch": "standard-V8.1SP1-hotfix_20220830",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0101"
-                    //     },
-                    //     {
-                    //         "branch": "standard-V8.1-hotfix_1",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0102"
-                    //     },
-                    //     {
-                    //         "branch": "standard-V8.0SP2LTS-hotfix_202205M",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0103"
-                    //     },
-                    //     {
-                    //         "branch": "standard-V8.0SP2LTS-hotfix_1",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0104"
-                    //     },
-                    //     {
-                    //         "branch": "standard-V8.0SP2-hotfix_3",
-                    //         "commits": [
-                    //             {
-                    //                 "path": "cap/cap-front",
-                    //                 "commit": "1afe0ef474913ee200b1cb2c12b0b2ca8e8bb555"
-                    //             }
-                    //         ],
-                    //         "id": "field0105"
-                    //     }
                     // ]
+                    return
                     this.requestArr(commitList);
                 },
                 requestArr: function (commitList) {
                     const commit = commitList.pop();
                     if (!commit) {
                         localStorage.setItem(this.codeAutoCommitId, JSON.stringify(this.mergeProcess));
-                        // document.querySelector('div[title=刷新关联]').click();
+                        document.querySelector('div[title=刷新关联]').click();
                         return;
                     };
                     // 如果数量匹配判断已经合并完成
@@ -303,7 +235,6 @@
                         })
                         return this.requestArr(commitList)
                     }
-
                     this.gitCherryPick(commit)
                     .catch(e=>{
                     })
@@ -314,10 +245,14 @@
                         finishBranch.forEach(i=>{
                             let theCommit =  i.split('++')[1]
                             let thePath =  i.split('++')[2]
-                            if(this.mergeProcess[i]==='success'){
+                            let failReason={
+                                'conflict':'冲突',
+                                'falilure':'其他',
+                            }
+                            if(this.mergeProcess[i]==='success'||this.mergeProcess[i]==='cherry-picked'){
                                 finishBranchCount+=1
-                            }else{
-                                failMsg+=`失败：源commit:${theCommit.slice(0,7)},工程:${thePath},分支:${commit.branch},原因:${this.mergeProcess.errorMessage[i]}`
+                            } else {
+                                failMsg+=`失败${failReason[this.mergeProcess[i]]?'：'+failReason[this.mergeProcess[i]]:''}，源commit:${theCommit.slice(0,7)},工程:${thePath},分支:${commit.branch}。`
                             }
                         })
                         if(finishBranchCount===finishBranch.length){
@@ -345,7 +280,7 @@
                         position: {left:"100px",top:'50%'}, 
                     })
                     const splitArr =  data.commits.filter(i=>{
-                        this.mergeProcess[data.branch+'++'+i.commit+'++'+i.path]!=='success'&&this.mergeProcess[data.branch+'++'+i.commit+'++'+i.path]!=='cherry-picked'
+                        return this.mergeProcess[data.branch+'++'+i.commit+'++'+i.path]!=='success'&&this.mergeProcess[data.branch+'++'+i.commit+'++'+i.path]!=='cherry-picked'
                     })
                     .map(async (item)=>{
                         
@@ -356,6 +291,8 @@
                         //     "branch": "standard-V8.2-hotfix_20230414",
                         //     "id": "field0099"
                         // }
+                        // 
+                        // 一、创建临时分支，如果已存在的话删除重新创建
                         try{
                             console.log('getBranch')
                             await this.getBranch(eachCherryPickData)
@@ -369,14 +306,16 @@
                                 }
                                 this.tokenExpired=true
                             }
-                            return Promise.reject({process:0})
+                            // return Promise.reject({process:0})
                         }
                         try{
                             console.log('postBranch')
                             await this.postBranch(eachCherryPickData)
-                        } catch ({response}) {
+                        } catch (err) {
+                            console.log(err)
                             return Promise.reject({process:1})
                         }
+                        // 二、cherry_pick
                         let commitMsg = undefined
                         try{
                             console.log('cherry_pick')
@@ -384,32 +323,45 @@
                             this.mergeProcess[eachCherryPickData.branch+'++'+eachCherryPickData.commit+'++'+eachCherryPickData.path]='success'
                             commitMsg = res.data.title;
                         } catch ({ response: { data: { message,error_code } } }) {
+                            let mergeProcessKey=data.branch+'++'+eachCherryPickData.commit+'++'+eachCherryPickData.path
                             if (error_code==='conflict') {
-                                this.mergeProcess[data.branch+'++'+eachCherryPickData.commit+'++'+eachCherryPickData.path]='conflict'
+                                this.mergeProcess[mergeProcessKey]='conflict'
                                 if(!this.mergeProcess.errorMessage)this.mergeProcess.errorMessage={}
-                                this.mergeProcess.errorMessage[data.branch+'++'+eachCherryPickData.commit+'++'+eachCherryPickData.path]=message + ' Code:' + error_code
+                                this.mergeProcess.errorMessage[mergeProcessKey]=message + ' Code:' + error_code
+                                // 失败的时候删除临时分支
+                                await this.getBranch(eachCherryPickData)
+                                await this.deleteBranch(eachCherryPickData)
+                                return Promise.reject({process:2})
                             }else if(message.includes('cherry-picked')){
-                                this.mergeProcess[data.branch+'++'+eachCherryPickData.commit]='cherry-picked'
+                                this.mergeProcess[mergeProcessKey]='cherry-picked'
                                 if(!this.mergeProcess.errorMessage)this.mergeProcess.errorMessage={}
-                                this.mergeProcess.errorMessage[data.branch+'++'+eachCherryPickData.commit+'++'+eachCherryPickData.path]=message + ' Code:cherry-picked'
+                                this.mergeProcess.errorMessage[mergeProcessKey]=message + ' Code:cherry-picked'
+                                // 失败的时候删除临时分支
+                                await this.getBranch(eachCherryPickData)
+                                await this.deleteBranch(eachCherryPickData)
                             }else {
-                                this.mergeProcess[data.branch+'++'+eachCherryPickData.commit]='falilure'
+                                this.mergeProcess[mergeProcessKey]='falilure'
                                 if(!this.mergeProcess.errorMessage)this.mergeProcess.errorMessage={}
-                                this.mergeProcess.errorMessage[data.branch+'++'+eachCherryPickData.commit+'++'+eachCherryPickData.path]=message + ' Code:falilure'
+                                this.mergeProcess.errorMessage[mergeProcessKey]=message + ' Code:falilure'
+                                // 失败的时候删除临时分支
+                                await this.getBranch(eachCherryPickData)
+                                await this.deleteBranch(eachCherryPickData)
+                                return Promise.reject({process:2})
                             }
-                            return Promise.reject({process:2})
                         }
+                        // 三、mergeRequest
                         try{
                             console.log('mergeRequest')
-                            await this.mergeRequest(data, commitMsg)
-                        } catch ({response}) {
+                            await commitMsg&&this.mergeRequest(eachCherryPickData, commitMsg)
+                        } catch (err) {
+                            console.log(err)
                             return Promise.reject({process:3})
                         }
                     })
                     return Promise.all(splitArr)
                 },
                 getCommitInfo: function (sha) {
-                    return axios.get(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/commits/${sha}`, this.config).then(console.log)
+                    return axios.get(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/commits/${sha}`, this.config).then(console.log)
                 },
                 nameBranch: function (data) {
                     return data.branch + '_' + data.commit;
@@ -422,30 +374,30 @@
                 },
                 cherry_pick: function (data) {
                     const commit = data.commit;
-                    return axios.post(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/commits/${commit}/cherry_pick`, { branch: this.nameBranch(data), sha: commit }, this.config)
+                    return axios.post(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/commits/${commit}/cherry_pick`, { branch: this.nameBranch(data), sha: commit }, this.config)
 
                 },
                 createBranch: function (data) {
-                    return axios.get(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
+                    return axios.get(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
                     .then(() => {
-                        return axios.delete(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
+                        return axios.delete(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
                         .then(res => this.nameBranch(data))
                     }, rej => this.nameBranch(data))
                     .then((name) => {
-                        return axios.post(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches`, { branch: this.nameBranch(data), ref: data.branch }, this.config)
+                        return axios.post(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches`, { branch: this.nameBranch(data), ref: data.branch }, this.config)
                     })
                 },
                 getBranch:function(data){
-                    return axios.get(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
+                    return axios.get(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
                 },
                 deleteBranch:function(data){
-                    return axios.delete(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
+                    return axios.delete(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches/${this.nameBranch(data)}`, this.config)
                 },
                 postBranch:function(data){
-                    return axios.post(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches`, { branch: this.nameBranch(data), ref: data.branch }, this.config)
+                    return axios.post(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches`, { branch: this.nameBranch(data), ref: data.branch }, this.config)
                 },
                 mergeRequest: function (data, title) {
-                    return axios.post(`https://gitlab.seeyon.com/api/v4/projects/${this.getRepositoryPath(data)}/merge_requests`, { title, target_branch: data.branch, source_branch: this.nameBranch(data) }, this.config)
+                    return axios.post(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/merge_requests`, { title, target_branch: data.branch, source_branch: this.nameBranch(data),remove_source_branch:true }, this.config)
                 }
             }
         };
