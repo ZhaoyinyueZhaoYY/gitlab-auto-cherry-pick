@@ -217,7 +217,6 @@
                     //         "id": "field0098"
                     //     },
                     // ]
-                    return
                     this.requestArr(commitList);
                 },
                 requestArr: function (commitList) {
