@@ -105,6 +105,13 @@
                     this.mergeProcess=JSON.parse(localStorage.getItem(this.codeAutoCommitId))
                     if(!this.mergeProcess)this.mergeProcess={}
 
+                    
+                    let allBranch = this.revertTable()
+                    let keyRow = allBranch.find(i=>{
+                        return i[1]===this.theKeyBranch
+                    })
+                    if(!keyRow||keyRow[7]!=='edit') return
+                    this.setFieldState(keyRow[5],keyRow[6])
                 },
                 update: function () {
                     // this.init();
@@ -144,14 +151,22 @@
                             }
                             if (value.type === "select") {
                                 p[sp[0]][sp[1]] = formmains.formmain_76266[value.id].showValue
+                                if(!!formmains.formmain_76266[value.id].enums[0]?.id){
+                                    p[sp[0]][6] = formmains.formmain_76266[value.id].enums[0]?.id
+                                    p[sp[0]][7] = formmains.formmain_76266[value.id].auth
+                                }
                             } else {
                                 p[sp[0]][sp[1]] = value.display;
+                            }
+                            if(p[sp[0]][4]&&p[sp[0]][4].includes('field')){
+                                p[sp[0]][5]=p[sp[0]][4]
                             }
                             p[sp[0]][4] = value.id;
                             return p;
                         }, []);
                         return prev.concat(tr)
-                    }, []).filter(i => {
+                    }, [])
+                    .filter(i => {
                         return i[0] && i[0].startsWith("V")
                     });
                     return table;
@@ -178,6 +193,8 @@
                     return branchCommits.length===this.targetCommits.length
                 },
                 handle: function () {
+                    var btnEL = document.querySelector('#gitButton');
+                    btnEL.setAttribute("disabled", "true");
                     const privateToken = document.querySelector('#gitInput').value;
                     if (!privateToken) {
                         $.alert(`请输入gitlab账户绑定的AccessToken! \r1、在登录gitlab后，点击右上角的头像，选择 "Preferences"。\n2、在左侧导航栏中，选择 "访问令牌（Access Tokens）" 。\n3、输入 AccessToken 的名称并选择token有效时间（不选则永久有效），token范围全选（其中包含api，read_user，read_api，read_repository，write_repository）。\n4、点击 "创建个人访问令牌（Create personal access token）" 按钮，将生成的 AccessToken 复制并填入输入框。`);
@@ -185,8 +202,10 @@
                     };
                     localStorage.setItem('Private-Token', privateToken);
                     this.config.headers['Private-Token'] = privateToken
-                    this.targetBranch = this.revertTable().filter(i => i[2] === "是").map(i =>{
-                        return { branch: i[1], id: i[4] }
+                    this.targetBranch=this.revertTable().filter(i =>{ 
+                        return i[2] === "是"
+                    }).map(i =>{
+                        return { branch: i[1], id: i[4]}
                         }
                     );
                     if(!this.targetBranch.length){
@@ -224,6 +243,8 @@
                     if (!commit) {
                         localStorage.setItem(this.codeAutoCommitId, JSON.stringify(this.mergeProcess));
                         document.querySelector('div[title=刷新关联]').click();
+                        var btnEL = document.querySelector('#gitButton');
+                        btnEL.removeAttribute("disabled");
                         return;
                     };
                     // 如果数量匹配判断已经合并完成
@@ -251,7 +272,7 @@
                             if(this.mergeProcess[i]==='success'||this.mergeProcess[i]==='cherry-picked'){
                                 finishBranchCount+=1
                             } else {
-                                failMsg+=`失败${failReason[this.mergeProcess[i]]?'：'+failReason[this.mergeProcess[i]]:''}，源commit:${theCommit.slice(0,7)},工程:${thePath},分支:${commit.branch}。`
+                                failMsg+=`失败${failReason[this.mergeProcess[i]]?'：'+failReason[this.mergeProcess[i]]:''}，源commit:${theCommit.slice(0,7)},工程:${thePath}。`
                             }
                         })
                         if(finishBranchCount===finishBranch.length){
@@ -363,7 +384,7 @@
                     return axios.get(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/commits/${sha}`, this.config).then(console.log)
                 },
                 nameBranch: function (data) {
-                    return data.branch + '_' + data.commit;
+                    return 'GitAutoMerge_' + data.branch + '_' + data.commit;
                 },
                 getRepositoryPath: function (data) {
                     return data.path.replace(/\//, '%2F');
@@ -397,6 +418,9 @@
                 },
                 mergeRequest: function (data, title) {
                     return axios.post(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/merge_requests`, { title, target_branch: data.branch, source_branch: this.nameBranch(data),remove_source_branch:true }, this.config)
+                },
+                getAllBranch: function (data) {
+                    return axios.get(`https://gitlab.*******.com/api/v4/projects/${this.getRepositoryPath(data)}/repository/branches?per_page=200`, this.config)
                 }
             }
         };
